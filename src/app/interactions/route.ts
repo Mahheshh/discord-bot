@@ -1,52 +1,26 @@
 import { NextRequest } from "next/server";
 
 import { Interaction, InteractionResponse } from "@/types/interaction";
-import {
-  InteractionResponseType,
-  InteractionType,
-  verifyKey,
-} from "discord-interactions";
+import { InteractionResponseType, InteractionType } from "discord-interactions";
 import initializeAgent from "@/lib/initAgent";
 import { HumanMessage } from "@langchain/core/messages";
 
+import { verifyInteractionRequest } from "@/discord/verifyReq";
+
 export async function POST(req: NextRequest) {
   console.log("Received POST request");
-  const signature = req.headers.get("X-Signature-Ed25519") || "";
-  const timestamp = req.headers.get("X-Signature-Timestamp") || "";
-  console.log("Request headers:", {
-    signature: signature || "missing",
-    timestamp: timestamp || "missing",
-  });
 
-  if (!signature || !timestamp) {
-    console.log("Missing headers:", { signature, timestamp });
-    return Response.json(
-      {
-        message: "Missing required headers",
-      },
-      { status: 401 }
-    );
-  }
-
-  const interaction: Interaction = await req.json();
-  console.log("Received interaction:", interaction);
-
-  const isValidRequest = await verifyKey(
-    JSON.stringify(interaction),
-    process.env.DISCORD_PUBLIC_KEY!,
-    signature,
-    timestamp
+  const verifyResult = await verifyInteractionRequest(
+    req,
+    process.env.DISCORD_PUBLIC_KEY as string
   );
 
-  if (!isValidRequest) {
-    console.log("Invalid signature detected");
-    return Response.json(
-      {
-        message: "Invalid signature",
-      },
-      { status: 401 }
-    );
+  if (!verifyResult.isValid || !verifyResult.interaction) {
+    return new Response("Invalid request", { status: 401 });
   }
+
+  const { interaction } = verifyResult as { interaction: Interaction };
+  console.log("Received interaction:", interaction);
 
   if (interaction.type === InteractionType.PING) {
     console.log("Handling PING interaction");
