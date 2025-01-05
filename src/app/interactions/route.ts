@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
   console.log("Received POST request");
   const signature = req.headers.get("X-Signature-Ed25519") || "";
   const timestamp = req.headers.get("X-Signature-Timestamp") || "";
+  console.log("Request headers:", {
+    signature: signature || "missing",
+    timestamp: timestamp || "missing",
+  });
+
   if (!signature || !timestamp) {
     console.log("Missing headers:", { signature, timestamp });
     return Response.json(
